@@ -60,6 +60,15 @@ export interface XTweet {
 /** @deprecated Use {@link XTweet}. Kept as an alias so existing imports keep working. */
 export type XBookmark = XTweet;
 
+/** A personalized trend from GET /2/users/personalized_trends. */
+export interface XTrend {
+  name: string;
+  category?: string;
+  postCount?: number;
+  /** A representative tweet id, when X provides one. */
+  tweetId?: string;
+}
+
 export interface XReadClientOptions {
   fetchFn?: FetchLike;
   /** Override the API base (defaults to the canonical api.x.com host). */
@@ -98,6 +107,16 @@ interface RawUser {
 interface TimelineBody {
   data?: RawTweet[];
   includes?: { users?: RawUser[] };
+}
+
+interface RawTrend {
+  trend_name: string;
+  category?: string | null;
+  post_count?: number | null;
+  tweet_id?: string | null;
+}
+interface PersonalizedTrendsBody {
+  data?: RawTrend[];
 }
 
 /** Tweet fields + expansions every read requests — identical across the three endpoints. */
@@ -239,6 +258,24 @@ export class XReadClient {
       `/users/${me.id}/timelines/reverse_chronological?${params.toString()}`,
     )) as TimelineBody;
     return this.shapeTweets(body);
+  }
+
+  /**
+   * The authenticated user's personalized ("For You") trends — GET
+   * /2/users/personalized_trends. This is the live X trends surface, distinct
+   * from the feed-DB engagement ranking; it's what a user means by "what's
+   * trending". Uses the same user-context bearer as the other reads.
+   */
+  async getPersonalizedTrends(): Promise<XTrend[]> {
+    const body = (await this.authedGetJson(
+      '/users/personalized_trends?personalized_trend.fields=category,post_count,trend_name,tweet_id',
+    )) as PersonalizedTrendsBody;
+    return (body.data ?? []).map((t) => ({
+      name: t.trend_name,
+      category: t.category ?? undefined,
+      postCount: typeof t.post_count === 'number' ? t.post_count : undefined,
+      tweetId: t.tweet_id ?? undefined,
+    }));
   }
 }
 

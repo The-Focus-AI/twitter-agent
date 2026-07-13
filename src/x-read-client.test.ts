@@ -279,3 +279,47 @@ describe('XReadClient 403 handling', () => {
     await expect(client.getMentions()).rejects.toBeInstanceOf(XAuthError);
   });
 });
+
+describe('XReadClient.getPersonalizedTrends', () => {
+  const TRENDS = {
+    json: {
+      data: [
+        { trend_name: 'AI agents', category: 'Technology', post_count: 48210, tweet_id: 't9' },
+        { trend_name: '#WWDC', post_count: 12000 },
+        { trend_name: 'Local politics', category: 'News' },
+      ],
+    },
+  };
+
+  it('shapes personalized trends (name/category/postCount/tweetId)', async () => {
+    const { fn, calls } = fakeFetch([TRENDS]);
+    const client = new XReadClient(fakeTokens(), { fetchFn: fn });
+    const trends = await client.getPersonalizedTrends();
+    expect(calls[0].url).toContain('/users/personalized_trends');
+    expect(calls[0].authorization).toBe('Bearer token-1');
+    expect(trends).toHaveLength(3);
+    expect(trends[0]).toEqual({
+      name: 'AI agents',
+      category: 'Technology',
+      postCount: 48210,
+      tweetId: 't9',
+    });
+    expect(trends[1]).toEqual({ name: '#WWDC', postCount: 12000 });
+    expect(trends[2].category).toBe('News');
+    expect(trends[2].postCount).toBeUndefined();
+  });
+
+  it('returns [] when X sends no data', async () => {
+    const { fn } = fakeFetch([{ json: {} }]);
+    const client = new XReadClient(fakeTokens(), { fetchFn: fn });
+    expect(await client.getPersonalizedTrends()).toEqual([]);
+  });
+
+  it('raises needs_reauth on 403 (tier/scope), no token replay', async () => {
+    const { fn } = fakeFetch([{ status: 403, body: 'forbidden' }]);
+    const client = new XReadClient(fakeTokens(), { fetchFn: fn });
+    await expect(client.getPersonalizedTrends()).rejects.toMatchObject({
+      kind: 'needs_reauth',
+    });
+  });
+});
