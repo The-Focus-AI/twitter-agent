@@ -1,7 +1,7 @@
 {
   "name": "Twitter",
   "defaultProvider": "mycel",
-  "defaultModel": "deepseek/deepseek-v4-pro",
+  "defaultModel": "default",
   "toolsDir": "tools",
   "stimulusFile": "STIMULUS.md",
   "agents": [],
